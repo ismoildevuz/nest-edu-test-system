@@ -19,6 +19,12 @@ import { StudentModule } from './student/student.module';
 import { GroupModule } from './group/group.module';
 import { Group } from './group/models/group.model';
 import { Student } from './student/models/student.model';
+import { TestModule } from './test/test.module';
+import { QuestionModule } from './question/question.module';
+import { AnswerModule } from './answer/answer.module';
+import { Test } from './test/models/test.model';
+import { Question } from './question/models/question.model';
+import { Answer } from './answer/models/answer.model';
 
 @Module({
   imports: [
@@ -45,6 +51,9 @@ import { Student } from './student/models/student.model';
         TeacherSubject,
         Group,
         Student,
+        Test,
+        Question,
+        Answer,
       ],
       autoLoadModels: true,
       logging: false,
@@ -57,6 +66,9 @@ import { Student } from './student/models/student.model';
     TeacherSubjectModule,
     StudentModule,
     GroupModule,
+    TestModule,
+    QuestionModule,
+    AnswerModule,
   ],
   controllers: [],
   providers: [],
