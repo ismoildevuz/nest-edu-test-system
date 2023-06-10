@@ -83,22 +83,9 @@ export class AdminService {
         where: { id: admin.id },
       },
     );
-    const adminData = await this.adminRepository.findOne({
-      where: { id: admin.id },
-      attributes: [
-        'id',
-        'full_name',
-        'email',
-        'phone',
-        'telegram',
-        'role_id',
-        'image_id',
-      ],
-      include: [Role, Image],
-    });
     const response = {
       token: tokens.access_token,
-      admin: adminData,
+      admin,
     };
     return response;
   }
