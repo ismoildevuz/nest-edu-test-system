@@ -224,6 +224,16 @@ export class AdminService {
   async getAdminByLogin(login: string) {
     const admin = await this.adminRepository.findOne({
       where: { login },
+      attributes: [
+        'id',
+        'full_name',
+        'email',
+        'phone',
+        'telegram',
+        'role_id',
+        'image_id',
+      ],
+      include: [Role, Image],
     });
     return admin;
   }

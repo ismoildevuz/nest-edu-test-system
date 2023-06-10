@@ -173,6 +173,8 @@ export class TeacherService {
   async getTeacherByLogin(login: string) {
     const teacher = await this.teacherRepository.findOne({
       where: { login },
+      attributes: ['id', 'full_name', 'email', 'phone', 'telegram', 'image_id'],
+      include: [Image],
     });
     return teacher;
   }
