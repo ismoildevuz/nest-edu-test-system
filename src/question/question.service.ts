@@ -6,6 +6,7 @@ import { Question } from './models/question.model';
 import { TestService } from '../test/test.service';
 import { v4 as uuid } from 'uuid';
 import { Test } from '../test/models/test.model';
+import { Answer } from '../answer/models/answer.model';
 
 @Injectable()
 export class QuestionService {
@@ -26,7 +27,7 @@ export class QuestionService {
   async findAll() {
     return this.questionRepository.findAll({
       attributes: ['id', 'question', 'is_multiple_answer', 'test_id'],
-      include: [Test],
+      include: [Test, Answer],
     });
   }
 
@@ -34,7 +35,7 @@ export class QuestionService {
     const question = await this.questionRepository.findOne({
       where: { id },
       attributes: ['id', 'question', 'is_multiple_answer', 'test_id'],
-      include: [Test],
+      include: [Test, Answer],
     });
     if (!question) {
       throw new HttpException('Question not found', HttpStatus.NOT_FOUND);

@@ -6,6 +6,7 @@ import { Test } from './models/test.model';
 import { SubjectService } from '../subject/subject.service';
 import { v4 as uuid } from 'uuid';
 import { Subject } from '../subject/models/subject.model';
+import { Question } from '../question/models/question.model';
 
 @Injectable()
 export class TestService {
@@ -33,7 +34,7 @@ export class TestService {
         'createdAt',
         'subject_id',
       ],
-      include: [Subject],
+      include: [Subject, Question],
     });
   }
 
@@ -48,7 +49,7 @@ export class TestService {
         'createdAt',
         'subject_id',
       ],
-      include: [Subject],
+      include: [Subject, Question],
     });
     if (!test) {
       throw new HttpException('Test not found', HttpStatus.NOT_FOUND);

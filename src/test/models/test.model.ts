@@ -9,6 +9,7 @@ import {
 } from 'sequelize-typescript';
 import { Subject } from '../../subject/models/subject.model';
 import { Question } from '../../question/models/question.model';
+import { Result } from '../../result/models/result.model';
 
 interface TestAttrs {
   id: string;
@@ -52,4 +53,7 @@ export class Test extends Model<Test, TestAttrs> {
 
   @HasMany(() => Question)
   question: Question;
+
+  @HasMany(() => Result)
+  result: Result;
 }

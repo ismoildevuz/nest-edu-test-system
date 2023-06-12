@@ -7,19 +7,19 @@ import {
   Table,
   HasMany,
 } from 'sequelize-typescript';
+import { Student } from '../../student/models/student.model';
 import { Test } from '../../test/models/test.model';
-import { Answer } from '../../answer/models/answer.model';
 import { ResultQuestion } from '../../result_question/models/result_question.model';
 
-interface QuestionAttrs {
+interface ResultAttrs {
   id: string;
-  question: string;
-  is_multiple_answer: boolean;
+  time_spent: number;
+  student_id: string;
   test_id: string;
 }
 
-@Table({ tableName: 'question' })
-export class Question extends Model<Question, QuestionAttrs> {
+@Table({ tableName: 'result' })
+export class Result extends Model<Result, ResultAttrs> {
   @Column({
     type: DataType.STRING,
     primaryKey: true,
@@ -27,14 +27,15 @@ export class Question extends Model<Question, QuestionAttrs> {
   id: string;
 
   @Column({
+    type: DataType.INTEGER,
+  })
+  time_spent: number;
+
+  @ForeignKey(() => Student)
+  @Column({
     type: DataType.STRING,
   })
-  question: string;
-
-  @Column({
-    type: DataType.BOOLEAN,
-  })
-  is_multiple_answer: boolean;
+  student_id: string;
 
   @ForeignKey(() => Test)
   @Column({
@@ -42,11 +43,11 @@ export class Question extends Model<Question, QuestionAttrs> {
   })
   test_id: string;
 
+  @BelongsTo(() => Student)
+  student: Student;
+
   @BelongsTo(() => Test)
   test: Test;
-
-  @HasMany(() => Answer)
-  answer: Answer;
 
   @HasMany(() => ResultQuestion)
   resultQuestion: ResultQuestion;

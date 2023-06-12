@@ -25,6 +25,12 @@ import { AnswerModule } from './answer/answer.module';
 import { Test } from './test/models/test.model';
 import { Question } from './question/models/question.model';
 import { Answer } from './answer/models/answer.model';
+import { ResultModule } from './result/result.module';
+import { ResultQuestionModule } from './result_question/result_question.module';
+import { ResultAnswerModule } from './result_answer/result_answer.module';
+import { Result } from './result/models/result.model';
+import { ResultQuestion } from './result_question/models/result_question.model';
+import { ResultAnswer } from './result_answer/models/result_answer.model';
 
 @Module({
   imports: [
@@ -54,6 +60,9 @@ import { Answer } from './answer/models/answer.model';
         Test,
         Question,
         Answer,
+        Result,
+        ResultQuestion,
+        ResultAnswer,
       ],
       autoLoadModels: true,
       logging: false,
@@ -69,6 +78,9 @@ import { Answer } from './answer/models/answer.model';
     TestModule,
     QuestionModule,
     AnswerModule,
+    ResultModule,
+    ResultQuestionModule,
+    ResultAnswerModule,
   ],
   controllers: [],
   providers: [],

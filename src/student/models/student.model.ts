@@ -9,6 +9,7 @@ import {
 } from 'sequelize-typescript';
 import { Image } from '../../image/models/image.model';
 import { Group } from '../../group/models/group.model';
+import { Result } from '../../result/models/result.model';
 
 interface StudentAttrs {
   id: string;
@@ -83,4 +84,7 @@ export class Student extends Model<Student, StudentAttrs> {
 
   @BelongsTo(() => Image)
   image: Image;
+
+  @HasMany(() => Result)
+  result: Result;
 }
