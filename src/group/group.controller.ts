@@ -8,6 +8,7 @@ import {
   Delete,
   UseInterceptors,
   UploadedFiles,
+  Headers,
 } from '@nestjs/common';
 import { GroupService } from './group.service';
 import { CreateGroupDto } from './dto/create-group.dto';
@@ -23,18 +24,22 @@ export class GroupController {
   async create(
     @Body() createGroupDto: CreateGroupDto,
     @UploadedFiles() images: Express.Multer.File[],
+    @Headers('Authorization') authHeader: string,
   ) {
-    return this.groupService.create(createGroupDto, images);
+    return this.groupService.create(createGroupDto, images, authHeader);
   }
 
   @Get()
-  async findAll() {
-    return this.groupService.findAll();
+  async findAll(@Headers('Authorization') authHeader: string) {
+    return this.groupService.findAll(authHeader);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.groupService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @Headers('Authorization') authHeader: string,
+  ) {
+    return this.groupService.findOne(id, authHeader);
   }
 
   @Patch(':id')
@@ -43,12 +48,16 @@ export class GroupController {
     @Param('id') id: string,
     @Body() updateGroupDto: UpdateGroupDto,
     @UploadedFiles() images: Express.Multer.File[],
+    @Headers('Authorization') authHeader: string,
   ) {
-    return this.groupService.update(id, updateGroupDto, images);
+    return this.groupService.update(id, updateGroupDto, images, authHeader);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.groupService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Headers('Authorization') authHeader: string,
+  ) {
+    return this.groupService.remove(id, authHeader);
   }
 }

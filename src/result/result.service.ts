@@ -18,8 +18,8 @@ export class ResultService {
   ) {}
 
   async create(createResultDto: CreateResultDto) {
-    await this.studentService.findOne(createResultDto.student_id);
-    await this.testService.findOne(createResultDto.test_id);
+    await this.studentService.getOne(createResultDto.student_id);
+    await this.testService.getOne(createResultDto.test_id);
     const newResult = await this.resultRepository.create({
       id: uuid(),
       ...createResultDto,

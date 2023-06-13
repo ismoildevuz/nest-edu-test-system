@@ -8,6 +8,7 @@ import {
   Delete,
   UseInterceptors,
   UploadedFiles,
+  Headers,
 } from '@nestjs/common';
 import { SubjectService } from './subject.service';
 import { CreateSubjectDto } from './dto/create-subject.dto';
@@ -23,18 +24,22 @@ export class SubjectController {
   async create(
     @Body() createSubjectDto: CreateSubjectDto,
     @UploadedFiles() images: Express.Multer.File[],
+    @Headers('Authorization') authHeader: string,
   ) {
-    return this.subjectService.create(createSubjectDto, images);
+    return this.subjectService.create(createSubjectDto, images, authHeader);
   }
 
   @Get()
-  async findAll() {
-    return this.subjectService.findAll();
+  async findAll(@Headers('Authorization') authHeader: string) {
+    return this.subjectService.findAll(authHeader);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.subjectService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @Headers('Authorization') authHeader: string,
+  ) {
+    return this.subjectService.findOne(id, authHeader);
   }
 
   @Patch(':id')
@@ -43,12 +48,16 @@ export class SubjectController {
     @Param('id') id: string,
     @Body() updateSubjectDto: UpdateSubjectDto,
     @UploadedFiles() images: Express.Multer.File[],
+    @Headers('Authorization') authHeader: string,
   ) {
-    return this.subjectService.update(id, updateSubjectDto, images);
+    return this.subjectService.update(id, updateSubjectDto, images, authHeader);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.subjectService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Headers('Authorization') authHeader: string,
+  ) {
+    return this.subjectService.remove(id, authHeader);
   }
 }

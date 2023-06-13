@@ -26,24 +26,28 @@ export class TeacherService {
 
   async login(authDto: AuthDto) {
     const { login, password } = authDto;
-    const teacher = await this.getTeacherByLogin(login);
-    if (!teacher) {
+    const teacherByLogin = await this.getTeacherByLogin(login);
+    if (!teacherByLogin) {
       throw new UnauthorizedException('Login or password is wrong');
     }
-    const isMatchPass = await bcrypt.compare(password, teacher.hashed_password);
+    const isMatchPass = await bcrypt.compare(
+      password,
+      teacherByLogin.hashed_password,
+    );
     if (!isMatchPass) {
       throw new UnauthorizedException('Login or password is wrong');
     }
-    const tokens = await this.getTokens(teacher);
+    const tokens = await this.getTokens(teacherByLogin);
     const hashed_refresh_token = await bcrypt.hash(tokens.refresh_token, 7);
     await this.teacherRepository.update(
       {
         hashed_refresh_token,
       },
       {
-        where: { id: teacher.id },
+        where: { id: teacherByLogin.id },
       },
     );
+    const teacher = await this.getOne(teacherByLogin.id);
     const response = {
       token: tokens.access_token,
       teacher,
@@ -54,7 +58,9 @@ export class TeacherService {
   async create(
     createTeacherDto: CreateTeacherDto,
     images: Express.Multer.File[],
+    authHeader: string,
   ) {
+    await this.isSuperAdmin(authHeader);
     const uploadedImages = await this.imageService.create(images);
     const teacherByLogin = await this.getTeacherByLogin(createTeacherDto.login);
     if (teacherByLogin) {
@@ -67,17 +73,19 @@ export class TeacherService {
       hashed_password,
       image_id: uploadedImages[0]?.id,
     });
-    return this.findOne(newTeacher.id);
+    return this.getOne(newTeacher.id);
   }
 
-  async findAll() {
+  async findAll(authHeader: string) {
+    await this.isAdmin(authHeader);
     return this.teacherRepository.findAll({
       attributes: ['id', 'full_name', 'email', 'phone', 'telegram', 'image_id'],
       include: [Image],
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, authHeader: string) {
+    await this.isUserSelf(id, authHeader);
     const teacher = await this.teacherRepository.findOne({
       where: { id },
       attributes: ['id', 'full_name', 'email', 'phone', 'telegram', 'image_id'],
@@ -93,8 +101,10 @@ export class TeacherService {
     id: string,
     updateTeacherDto: UpdateTeacherDto,
     images: Express.Multer.File[],
+    authHeader: string,
   ) {
-    const teacher = await this.findOne(id);
+    await this.isUserSelf(id, authHeader);
+    const teacher = await this.getOne(id);
     if (updateTeacherDto.login) {
       const teacherByLogin = await this.getTeacherByLogin(
         updateTeacherDto.login,
@@ -125,11 +135,12 @@ export class TeacherService {
       );
     }
     await this.teacherRepository.update(updateTeacherDto, { where: { id } });
-    return this.findOne(id);
+    return this.getOne(id);
   }
 
-  async remove(id: string) {
-    const teacher = await this.findOne(id);
+  async remove(id: string, authHeader: string) {
+    await this.isSuperAdmin(authHeader);
+    const teacher = await this.getOne(id);
     await this.teacherRepository.destroy({ where: { id } });
     if (teacher.image_id) {
       await this.imageService.remove(teacher.image_id);
@@ -137,10 +148,10 @@ export class TeacherService {
     return teacher;
   }
 
-  async getTokens(Teacher: Teacher) {
+  async getTokens(teacher: Teacher) {
     const jwtPayload = {
-      id: Teacher.id,
-      login: Teacher.login,
+      id: teacher.id,
+      login: teacher.login,
     };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(jwtPayload, {
@@ -161,10 +172,10 @@ export class TeacherService {
   async verifyAccessToken(authHeader: string) {
     try {
       const access_token = authHeader.split(' ')[1];
-      const teacher = await this.jwtService.verify(access_token, {
+      const user = await this.jwtService.verify(access_token, {
         secret: process.env.ACCESS_TOKEN_KEY,
       });
-      return teacher;
+      return user;
     } catch (error) {
       throw new UnauthorizedException('Invalid token');
     }
@@ -173,9 +184,51 @@ export class TeacherService {
   async getTeacherByLogin(login: string) {
     const teacher = await this.teacherRepository.findOne({
       where: { login },
-      attributes: ['id', 'full_name', 'email', 'phone', 'telegram', 'image_id'],
+      attributes: [
+        'id',
+        'full_name',
+        'email',
+        'phone',
+        'telegram',
+        'login',
+        'hashed_password',
+        'image_id',
+      ],
       include: [Image],
     });
     return teacher;
+  }
+
+  async getOne(id: string) {
+    const teacher = await this.teacherRepository.findOne({
+      where: { id },
+      attributes: ['id', 'full_name', 'email', 'phone', 'telegram', 'image_id'],
+      include: [Image],
+    });
+    if (!teacher) {
+      throw new HttpException('Teacher not found', HttpStatus.NOT_FOUND);
+    }
+    return teacher;
+  }
+
+  async isSuperAdmin(authHeader: string) {
+    const user = await this.verifyAccessToken(authHeader);
+    if (user.role !== 'super-admin') {
+      throw new UnauthorizedException('Restricted action');
+    }
+  }
+
+  async isAdmin(authHeader: string) {
+    const user = await this.verifyAccessToken(authHeader);
+    if (user.role !== 'super-admin' && user.role !== 'admin') {
+      throw new UnauthorizedException('Restricted action');
+    }
+  }
+
+  async isUserSelf(id: string, authHeader: string) {
+    const user = await this.verifyAccessToken(authHeader);
+    if (user.role !== 'super-admin' && user.id !== id) {
+      throw new UnauthorizedException('Restricted action');
+    }
   }
 }

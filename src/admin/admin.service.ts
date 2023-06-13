@@ -12,11 +12,12 @@ import { Admin } from './models/admin.model';
 import { v4 as uuid } from 'uuid';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { AuthAdminDto } from './dto/auth-admin.dto';
+import { AuthDto } from './dto/auth.dto';
 import { ImageService } from './../image/image.service';
 import { Role } from '../role/models/role.model';
 import { Image } from '../image/models/image.model';
 import { RoleService } from './../role/role.service';
+import { UpdateRoleDto } from './dto/update-role.dto';
 
 @Injectable()
 export class AdminService {
@@ -63,26 +64,32 @@ export class AdminService {
   //   return response;
   // }
 
-  async login(authAdminDto: AuthAdminDto) {
-    const { login, password } = authAdminDto;
-    const admin = await this.getAdminByLogin(login);
-    if (!admin) {
+  async login(authDto: AuthDto) {
+    const { login, password } = authDto;
+    const adminByLogin = await this.getAdminByLogin(login);
+    if (!adminByLogin) {
       throw new UnauthorizedException('Login or password is wrong');
     }
-    const isMatchPass = await bcrypt.compare(password, admin.hashed_password);
+    console.log(authDto, adminByLogin.hashed_password);
+
+    const isMatchPass = await bcrypt.compare(
+      password,
+      adminByLogin.hashed_password,
+    );
     if (!isMatchPass) {
       throw new UnauthorizedException('Login or password is wrong');
     }
-    const tokens = await this.getTokens(admin);
+    const tokens = await this.getTokens(adminByLogin);
     const hashed_refresh_token = await bcrypt.hash(tokens.refresh_token, 7);
     await this.adminRepository.update(
       {
         hashed_refresh_token,
       },
       {
-        where: { id: admin.id },
+        where: { id: adminByLogin.id },
       },
     );
+    const admin = await this.getOne(adminByLogin.id);
     const response = {
       token: tokens.access_token,
       admin,
@@ -90,7 +97,12 @@ export class AdminService {
     return response;
   }
 
-  async create(createAdminDto: CreateAdminDto, images: Express.Multer.File[]) {
+  async create(
+    createAdminDto: CreateAdminDto,
+    images: Express.Multer.File[],
+    authHeader: string,
+  ) {
+    await this.isSuperAdmin(authHeader);
     await this.roleService.findOne(createAdminDto.role_id);
     const uploadedImages = await this.imageService.create(images);
     const adminByLogin = await this.getAdminByLogin(createAdminDto.login);
@@ -104,10 +116,11 @@ export class AdminService {
       hashed_password,
       image_id: uploadedImages[0]?.id,
     });
-    return this.findOne(newAdmin.id);
+    return this.getOne(newAdmin.id);
   }
 
-  async findAll() {
+  async findAll(authHeader: string) {
+    await this.isSuperAdmin(authHeader);
     return this.adminRepository.findAll({
       attributes: [
         'id',
@@ -122,7 +135,8 @@ export class AdminService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, authHeader: string) {
+    await this.isUserSelf(id, authHeader);
     const admin = await this.adminRepository.findOne({
       where: { id },
       attributes: [
@@ -146,8 +160,10 @@ export class AdminService {
     id: string,
     updateAdminDto: UpdateAdminDto,
     images: Express.Multer.File[],
+    authHeader: string,
   ) {
-    const admin = await this.findOne(id);
+    await this.isUserSelf(id, authHeader);
+    const admin = await this.getOne(id);
     if (updateAdminDto.login) {
       const adminByLogin = await this.getAdminByLogin(updateAdminDto.login);
       if (adminByLogin && adminByLogin.id != id) {
@@ -157,9 +173,6 @@ export class AdminService {
     if (updateAdminDto.password) {
       const hashed_password = await bcrypt.hash(updateAdminDto.password, 7);
       await this.adminRepository.update({ hashed_password }, { where: { id } });
-    }
-    if (updateAdminDto.role_id) {
-      await this.roleService.findOne(updateAdminDto.role_id);
     }
     if (images.length) {
       if (admin.image_id) {
@@ -176,11 +189,24 @@ export class AdminService {
       );
     }
     await this.adminRepository.update(updateAdminDto, { where: { id } });
-    return this.findOne(id);
+    return this.getOne(id);
   }
 
-  async remove(id: string) {
-    const admin = await this.findOne(id);
+  async updateRole(
+    id: string,
+    updateRoleDto: UpdateRoleDto,
+    authHeader: string,
+  ) {
+    await this.isSuperAdmin(authHeader);
+    await this.getOne(id);
+    await this.roleService.findOne(updateRoleDto.role_id);
+    await this.adminRepository.update(updateRoleDto, { where: { id } });
+    return this.getOne(id);
+  }
+
+  async remove(id: string, authHeader: string) {
+    await this.isSuperAdmin(authHeader);
+    const admin = await this.getOne(id);
     await this.adminRepository.destroy({ where: { id } });
     if (admin.image_id) {
       await this.imageService.remove(admin.image_id);
@@ -192,6 +218,7 @@ export class AdminService {
     const jwtPayload = {
       id: admin.id,
       login: admin.login,
+      role: admin.role.name,
     };
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(jwtPayload, {
@@ -221,9 +248,9 @@ export class AdminService {
     }
   }
 
-  async getAdminByLogin(login: string) {
+  async getOne(id: string) {
     const admin = await this.adminRepository.findOne({
-      where: { login },
+      where: { id },
       attributes: [
         'id',
         'full_name',
@@ -235,6 +262,42 @@ export class AdminService {
       ],
       include: [Role, Image],
     });
+    if (!admin) {
+      throw new HttpException('Admin not found', HttpStatus.NOT_FOUND);
+    }
     return admin;
+  }
+
+  async getAdminByLogin(login: string) {
+    const admin = await this.adminRepository.findOne({
+      where: { login },
+      attributes: [
+        'id',
+        'full_name',
+        'email',
+        'phone',
+        'telegram',
+        'login',
+        'hashed_password',
+        'role_id',
+        'image_id',
+      ],
+      include: [Role, Image],
+    });
+    return admin;
+  }
+
+  async isSuperAdmin(authHeader: string) {
+    const admin = await this.verifyAccessToken(authHeader);
+    if (admin.role !== 'super-admin') {
+      throw new UnauthorizedException('Restricted action');
+    }
+  }
+
+  async isUserSelf(id: string, authHeader: string) {
+    const admin = await this.verifyAccessToken(authHeader);
+    if (admin.role !== 'super-admin' && admin.id !== id) {
+      throw new UnauthorizedException('Restricted action');
+    }
   }
 }

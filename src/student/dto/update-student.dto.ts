@@ -31,8 +31,4 @@ export class UpdateStudentDto {
   @IsOptional()
   @IsStrongPassword()
   password?: string;
-
-  @IsOptional()
-  @IsString()
-  group_id?: string;
 }

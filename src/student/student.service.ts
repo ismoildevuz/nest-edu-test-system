@@ -17,6 +17,7 @@ import { GroupService } from './../group/group.service';
 import { AuthDto } from './dto/auth.dto';
 import { Image } from '../image/models/image.model';
 import { Group } from '../group/models/group.model';
+import { UpdateGroupDto } from './dto/update-group.dto';
 
 @Injectable()
 export class StudentService {
@@ -29,24 +30,28 @@ export class StudentService {
 
   async login(authDto: AuthDto) {
     const { login, password } = authDto;
-    const student = await this.getStudentByLogin(login);
-    if (!student) {
+    const studentByLogin = await this.getStudentByLogin(login);
+    if (!studentByLogin) {
       throw new UnauthorizedException('Login or password is wrong');
     }
-    const isMatchPass = await bcrypt.compare(password, student.hashed_password);
+    const isMatchPass = await bcrypt.compare(
+      password,
+      studentByLogin.hashed_password,
+    );
     if (!isMatchPass) {
       throw new UnauthorizedException('Login or password is wrong');
     }
-    const tokens = await this.getTokens(student);
+    const tokens = await this.getTokens(studentByLogin);
     const hashed_refresh_token = await bcrypt.hash(tokens.refresh_token, 7);
     await this.studentRepository.update(
       {
         hashed_refresh_token,
       },
       {
-        where: { id: student.id },
+        where: { id: studentByLogin.id },
       },
     );
+    const student = await this.getOne(studentByLogin.id);
     const response = {
       token: tokens.access_token,
       student,
@@ -57,8 +62,10 @@ export class StudentService {
   async create(
     createStudentDto: CreateStudentDto,
     images: Express.Multer.File[],
+    authHeader: string,
   ) {
-    await this.groupService.findOne(createStudentDto.group_id);
+    await this.isSuperAdmin(authHeader);
+    await this.groupService.getOne(createStudentDto.group_id);
     const uploadedImages = await this.imageService.create(images);
     const studentByLogin = await this.getStudentByLogin(createStudentDto.login);
     if (studentByLogin) {
@@ -71,10 +78,11 @@ export class StudentService {
       hashed_password,
       image_id: uploadedImages[0]?.id,
     });
-    return this.findOne(newStudent.id);
+    return this.getOne(newStudent.id);
   }
 
-  async findAll() {
+  async findAll(authHeader: string) {
+    await this.isAdmin(authHeader);
     return this.studentRepository.findAll({
       attributes: [
         'id',
@@ -89,7 +97,8 @@ export class StudentService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, authHeader: string) {
+    await this.isUserSelf(id, authHeader);
     const student = await this.studentRepository.findOne({
       where: { id },
       attributes: [
@@ -113,8 +122,10 @@ export class StudentService {
     id: string,
     updateStudentDto: UpdateStudentDto,
     images: Express.Multer.File[],
+    authHeader: string,
   ) {
-    const student = await this.findOne(id);
+    await this.isUserSelf(id, authHeader);
+    const student = await this.getOne(id);
     if (updateStudentDto.login) {
       const studentByLogin = await this.getStudentByLogin(
         updateStudentDto.login,
@@ -129,9 +140,6 @@ export class StudentService {
         { hashed_password },
         { where: { id } },
       );
-    }
-    if (updateStudentDto.group_id) {
-      await this.groupService.findOne(updateStudentDto.group_id);
     }
     if (images.length) {
       if (student.image_id) {
@@ -148,11 +156,24 @@ export class StudentService {
       );
     }
     await this.studentRepository.update(updateStudentDto, { where: { id } });
-    return this.findOne(id);
+    return this.getOne(id);
   }
 
-  async remove(id: string) {
-    const student = await this.findOne(id);
+  async updateGroup(
+    id: string,
+    updateGroupDto: UpdateGroupDto,
+    authHeader: string,
+  ) {
+    await this.isSuperAdmin(authHeader);
+    await this.getOne(id);
+    await this.groupService.getOne(updateGroupDto.group_id);
+    await this.studentRepository.update(updateGroupDto, { where: { id } });
+    return this.getOne(id);
+  }
+
+  async remove(id: string, authHeader: string) {
+    await this.isSuperAdmin(authHeader);
+    const student = await this.getOne(id);
     await this.studentRepository.destroy({ where: { id } });
     if (student.image_id) {
       await this.imageService.remove(student.image_id);
@@ -184,10 +205,10 @@ export class StudentService {
   async verifyAccessToken(authHeader: string) {
     try {
       const access_token = authHeader.split(' ')[1];
-      const student = await this.jwtService.verify(access_token, {
+      const user = await this.jwtService.verify(access_token, {
         secret: process.env.ACCESS_TOKEN_KEY,
       });
-      return student;
+      return user;
     } catch (error) {
       throw new UnauthorizedException('Invalid token');
     }
@@ -202,11 +223,54 @@ export class StudentService {
         'email',
         'phone',
         'telegram',
+        'login',
+        'hashed_password',
         'group_id',
         'image_id',
       ],
       include: [Group, Image],
     });
     return student;
+  }
+
+  async getOne(id: string) {
+    const student = await this.studentRepository.findOne({
+      where: { id },
+      attributes: [
+        'id',
+        'full_name',
+        'email',
+        'phone',
+        'telegram',
+        'group_id',
+        'image_id',
+      ],
+      include: [Group, Image],
+    });
+    if (!student) {
+      throw new HttpException('Student not found', HttpStatus.NOT_FOUND);
+    }
+    return student;
+  }
+
+  async isSuperAdmin(authHeader: string) {
+    const user = await this.verifyAccessToken(authHeader);
+    if (user.role !== 'super-admin') {
+      throw new UnauthorizedException('Restricted action');
+    }
+  }
+
+  async isAdmin(authHeader: string) {
+    const user = await this.verifyAccessToken(authHeader);
+    if (user.role !== 'super-admin' && user.role !== 'admin') {
+      throw new UnauthorizedException('Restricted action');
+    }
+  }
+
+  async isUserSelf(id: string, authHeader: string) {
+    const user = await this.verifyAccessToken(authHeader);
+    if (user.role !== 'super-admin' && user.id !== id) {
+      throw new UnauthorizedException('Restricted action');
+    }
   }
 }

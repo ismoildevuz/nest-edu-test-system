@@ -16,7 +16,7 @@ export class QuestionService {
   ) {}
 
   async create(createQuestionDto: CreateQuestionDto) {
-    await this.testService.findOne(createQuestionDto.test_id);
+    await this.testService.getOne(createQuestionDto.test_id);
     const newQuestion = await this.questionRepository.create({
       id: uuid(),
       ...createQuestionDto,
@@ -46,7 +46,7 @@ export class QuestionService {
   async update(id: string, updateQuestionDto: UpdateQuestionDto) {
     await this.findOne(id);
     if (updateQuestionDto.test_id) {
-      await this.testService.findOne(updateQuestionDto.test_id);
+      await this.testService.getOne(updateQuestionDto.test_id);
     }
     await this.questionRepository.update(updateQuestionDto, { where: { id } });
     return this.findOne(id);

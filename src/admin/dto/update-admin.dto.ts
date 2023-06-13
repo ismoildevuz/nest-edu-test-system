@@ -31,8 +31,4 @@ export class UpdateAdminDto {
   @IsOptional()
   @IsStrongPassword()
   password?: string;
-
-  @IsOptional()
-  @IsString()
-  role_id?: string;
 }
