@@ -20,7 +20,7 @@ export class ResultQuestionService {
 
   async create(createResultQuestionDto: CreateResultQuestionDto) {
     await this.resultService.findOne(createResultQuestionDto.result_id);
-    await this.questionService.findOne(createResultQuestionDto.question_id);
+    await this.questionService.getOne(createResultQuestionDto.question_id);
     const newResultQuestion = await this.resultQuestionRepository.create({
       id: uuid(),
       ...createResultQuestionDto,

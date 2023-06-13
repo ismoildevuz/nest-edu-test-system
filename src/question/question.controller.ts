@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Headers,
 } from '@nestjs/common';
 import { QuestionService } from './question.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
@@ -16,30 +17,40 @@ export class QuestionController {
   constructor(private readonly questionService: QuestionService) {}
 
   @Post()
-  async create(@Body() createQuestionDto: CreateQuestionDto) {
-    return this.questionService.create(createQuestionDto);
+  async create(
+    @Body() createQuestionDto: CreateQuestionDto,
+    @Headers('Authorization') authHeader: string,
+  ) {
+    return this.questionService.create(createQuestionDto, authHeader);
   }
 
   @Get()
-  async findAll() {
-    return this.questionService.findAll();
+  async findAll(@Headers('Authorization') authHeader: string) {
+    return this.questionService.findAll(authHeader);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.questionService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @Headers('Authorization') authHeader: string,
+  ) {
+    return this.questionService.findOne(id, authHeader);
   }
 
   @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() updateQuestionDto: UpdateQuestionDto,
+    @Headers('Authorization') authHeader: string,
   ) {
-    return this.questionService.update(id, updateQuestionDto);
+    return this.questionService.update(id, updateQuestionDto, authHeader);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    return this.questionService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Headers('Authorization') authHeader: string,
+  ) {
+    return this.questionService.remove(id, authHeader);
   }
 }

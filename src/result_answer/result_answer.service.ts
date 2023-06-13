@@ -21,7 +21,7 @@ export class ResultAnswerService {
     await this.resultQuestionService.findOne(
       createResultAnswerDto.result_question_id,
     );
-    await this.answerService.findOne(createResultAnswerDto.answer_id);
+    await this.answerService.getOne(createResultAnswerDto.answer_id);
     const newResultAnswer = await this.resultAnswerRepository.create({
       id: uuid(),
       ...createResultAnswerDto,
